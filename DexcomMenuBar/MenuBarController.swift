@@ -70,6 +70,19 @@ class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
+        // Remote Bolus (only show if Nightscout is configured)
+        if NightscoutService.hasConfiguration {
+            let bolusItem = NSMenuItem(
+                title: "Bolus...",
+                action: #selector(openBolus),
+                keyEquivalent: "b"
+            )
+            bolusItem.target = self
+            menu.addItem(bolusItem)
+
+            menu.addItem(NSMenuItem.separator())
+        }
+
         // Refresh now
         let refreshItem = NSMenuItem(
             title: "Refresh Now",
@@ -297,7 +310,15 @@ class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
             Task { @MainActor [weak self] in
                 await self?.dexcomService.clearSession()
                 await self?.fetchReading()
+                // Rebuild menu in case Nightscout config changed
+                self?.buildMenu()
             }
+        }
+    }
+
+    @objc private func openBolus() {
+        BolusWindowController.shared.showBolus {
+            // Bolus completed or cancelled
         }
     }
 

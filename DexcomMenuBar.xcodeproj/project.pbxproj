@@ -14,6 +14,8 @@
 		A1000005001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000005000 /* Assets.xcassets */; };
 		A1000008001 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000008000 /* SettingsView.swift */; };
 		A1000009001 /* GlucoseChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000009000 /* GlucoseChartView.swift */; };
+		A100000A001 /* NightscoutService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000A000 /* NightscoutService.swift */; };
+		A100000B001 /* BolusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000B000 /* BolusView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +29,8 @@
 		A1000007000 /* DexcomMenuBar.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DexcomMenuBar.entitlements; sourceTree = "<group>"; };
 		A1000008000 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A1000009000 /* GlucoseChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseChartView.swift; sourceTree = "<group>"; };
+		A100000A000 /* NightscoutService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightscoutService.swift; sourceTree = "<group>"; };
+		A100000B000 /* BolusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BolusView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -54,9 +58,11 @@
 				A1000001000 /* DexcomMenuBarApp.swift */,
 				A1000002000 /* GlucoseReading.swift */,
 				A1000003000 /* DexcomService.swift */,
+				A100000A000 /* NightscoutService.swift */,
 				A1000004000 /* MenuBarController.swift */,
 				A1000008000 /* SettingsView.swift */,
 				A1000009000 /* GlucoseChartView.swift */,
+				A100000B000 /* BolusView.swift */,
 				A1000005000 /* Assets.xcassets */,
 				A1000006000 /* Info.plist */,
 				A1000007000 /* DexcomMenuBar.entitlements */,
@@ -144,9 +150,11 @@
 				A1000001001 /* DexcomMenuBarApp.swift in Sources */,
 				A1000002001 /* GlucoseReading.swift in Sources */,
 				A1000003001 /* DexcomService.swift in Sources */,
+				A100000A001 /* NightscoutService.swift in Sources */,
 				A1000004001 /* MenuBarController.swift in Sources */,
 				A1000008001 /* SettingsView.swift in Sources */,
 				A1000009001 /* GlucoseChartView.swift in Sources */,
+				A100000B001 /* BolusView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -69,25 +69,24 @@ struct GlucoseChartView: View {
                     )
                     .foregroundStyle(targetZoneColor)
 
-                    // Main glucose line - thick and smooth
+                    // Glucose dots (Dexcom style - small white dots)
                     ForEach(filteredReadings, id: \.timestamp) { reading in
-                        LineMark(
+                        PointMark(
                             x: .value("Time", reading.timestamp),
                             y: .value("Glucose", reading.value)
                         )
-                        .foregroundStyle(lineColor)
-                        .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(.white)
+                        .symbolSize(dotSize)
                     }
 
-                    // Dot at current reading (latest point)
+                    // Larger dot at current reading (latest point) with status color
                     if let latest = filteredReadings.last {
                         PointMark(
                             x: .value("Time", latest.timestamp),
                             y: .value("Glucose", latest.value)
                         )
                         .foregroundStyle(statusColor(for: latest.value))
-                        .symbolSize(80)
+                        .symbolSize(currentDotSize)
                     }
                 }
                 .chartYScale(domain: yAxisRange)
@@ -147,6 +146,26 @@ struct GlucoseChartView: View {
         case .threeHours: return 1
         case .sixHours: return 2
         case .twelveHours: return 3
+        }
+    }
+
+    /// Dot size based on time range (larger for 1 hour view)
+    private var dotSize: CGFloat {
+        switch selectedRange {
+        case .oneHour: return 25
+        case .threeHours: return 15
+        case .sixHours: return 15
+        case .twelveHours: return 15
+        }
+    }
+
+    /// Current reading dot size
+    private var currentDotSize: CGFloat {
+        switch selectedRange {
+        case .oneHour: return 50
+        case .threeHours: return 40
+        case .sixHours: return 40
+        case .twelveHours: return 40
         }
     }
 
