@@ -18,6 +18,7 @@ class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
     private var refreshTimer: Timer?
     private var chartViewController: ChartMenuItemViewController?
     private var selectedChartRange: ChartTimeRange = .threeHours
+    private var currentFetchTask: Task<Void, Never>?
 
     /// Whether to hide the blood sugar value in the menu bar
     private var hideBloodSugar: Bool {
@@ -25,14 +26,17 @@ class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
         set { UserDefaults.standard.set(newValue, forKey: "HideBloodSugar") }
     }
 
-    /// Polling interval in seconds (5 minutes)
-    private let refreshInterval: TimeInterval = 5 * 60
+    /// Dexcom readings are normally produced every 5 minutes.
+    private let readingInterval: TimeInterval = 5 * 60
+    private let retryInterval: TimeInterval = 30
+    private let nextReadingGracePeriod: TimeInterval = 10
 
     // MARK: - Initialization
 
     override init() {
         super.init()
         setupStatusItem()
+        observeSystemWake()
         startPolling()
     }
 
@@ -47,6 +51,15 @@ class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
         }
 
         buildMenu()
+    }
+
+    private func observeSystemWake() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(systemDidWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
     }
 
     private func buildMenu() {
@@ -139,22 +152,56 @@ class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
     // MARK: - Polling
 
     private func startPolling() {
-        Task {
-            await fetchReading()
-        }
-
-        let timer = Timer(timeInterval: refreshInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                await self?.fetchReading()
-            }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        refreshTimer = timer
+        queueFetch()
     }
 
     private func stopPolling() {
         refreshTimer?.invalidate()
         refreshTimer = nil
+        currentFetchTask?.cancel()
+        currentFetchTask = nil
+    }
+
+    private func queueFetch(clearSession: Bool = false) {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+
+        guard currentFetchTask == nil else { return }
+
+        currentFetchTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            if clearSession {
+                await dexcomService.clearSession()
+            }
+
+            await fetchReading()
+            currentFetchTask = nil
+        }
+    }
+
+    private func scheduleNextRefresh(for reading: GlucoseReading) {
+        let nextExpectedReading = reading.timestamp
+            .addingTimeInterval(readingInterval)
+            .addingTimeInterval(nextReadingGracePeriod)
+        let delay = max(nextExpectedReading.timeIntervalSinceNow, retryInterval)
+        scheduleRefresh(after: delay)
+    }
+
+    private func scheduleRetry() {
+        scheduleRefresh(after: retryInterval)
+    }
+
+    private func scheduleRefresh(after delay: TimeInterval) {
+        refreshTimer?.invalidate()
+
+        let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.queueFetch()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        refreshTimer = timer
     }
 
     // MARK: - Data Fetching
@@ -162,12 +209,14 @@ class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
     func fetchReading() async {
         isLoading = true
         updateMenuBarTitle(loading: true)
+        var chartLatestReading: GlucoseReading?
 
         // Fetch multiple readings for the chart (12 hours = max we need)
         let chartResult = await dexcomService.fetchReadings(minutes: 720, maxCount: 144)
         if case .success(let fetchedReadings) = chartResult {
             readings = fetchedReadings
             if let latest = fetchedReadings.last {
+                chartLatestReading = latest
                 currentReading = latest
             }
         }
@@ -184,20 +233,37 @@ class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
             updateMenuBarTitle(reading: reading)
             updateLastUpdatedMenuItem()
             updateChartView()
+            scheduleNextRefresh(for: reading)
 
         case .failure(let error):
             lastError = error.localizedDescription
+            var fallbackReading: GlucoseReading?
             currentReading = nil
 
             if case .noCredentials = error {
                 updateMenuBarTitle(needsSetup: true)
+            } else if let latest = chartLatestReading {
+                fallbackReading = latest
+                currentReading = latest
+                lastError = nil
+                updateMenuBarTitle(reading: latest)
             } else if let cached = await dexcomService.getCachedReading() {
+                fallbackReading = cached
+                currentReading = cached
                 updateMenuBarTitle(reading: cached, stale: true)
             } else {
                 updateMenuBarTitle(error: true)
             }
             updateLastUpdatedMenuItem()
             updateChartView()
+            if case .noCredentials = error {
+                refreshTimer?.invalidate()
+                refreshTimer = nil
+            } else if let reading = fallbackReading {
+                scheduleNextRefresh(for: reading)
+            } else {
+                scheduleRetry()
+            }
             print("[MenuBar] Error: \(error.localizedDescription)")
         }
     }
@@ -299,19 +365,19 @@ class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
     // MARK: - Actions
 
     @objc private func refreshNow() {
-        Task {
-            await dexcomService.clearSession()
-            await fetchReading()
-        }
+        queueFetch(clearSession: true)
+    }
+
+    @objc private func systemDidWake() {
+        queueFetch()
     }
 
     @objc private func openSettings() {
         SettingsWindowController.shared.showSettings { [weak self] in
             Task { @MainActor [weak self] in
-                await self?.dexcomService.clearSession()
-                await self?.fetchReading()
                 // Rebuild menu in case Nightscout config changed
                 self?.buildMenu()
+                self?.queueFetch(clearSession: true)
             }
         }
     }
