@@ -90,6 +90,7 @@ struct GlucoseChartView: View {
                     }
                 }
                 .chartYScale(domain: yAxisRange)
+                .chartXScale(domain: xAxisRange)
                 .chartXAxis {
                     AxisMarks(values: .stride(by: .hour, count: xAxisHourStride)) { _ in
                         AxisValueLabel(format: .dateTime.hour())
@@ -135,8 +136,14 @@ struct GlucoseChartView: View {
 
     /// Filter readings to the selected time range
     private var filteredReadings: [GlucoseReading] {
-        let cutoff = Date().addingTimeInterval(-Double(selectedRange.rawValue) * 60)
-        return readings.filter { $0.timestamp >= cutoff }
+        readings.filter { xAxisRange.contains($0.timestamp) }
+    }
+
+    /// Keep the X axis pinned to the selected real-world time window.
+    private var xAxisRange: ClosedRange<Date> {
+        let end = Date()
+        let start = end.addingTimeInterval(-Double(selectedRange.rawValue) * 60)
+        return start...end
     }
 
     /// X-axis hour stride based on time range
